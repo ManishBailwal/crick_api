@@ -1,0 +1,83 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import joblib
+import pandas as pd
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Load model and encoders
+model = joblib.load("winner_predictor_model.pkl")
+team_encoder = joblib.load("team_encoder.pkl")
+decision_encoder = joblib.load("decision_encoder.pkl")
+winner_encoder = joblib.load("winner_encoder.pkl")
+venue_encoder = joblib.load("venue_encoder.pkl")
+
+# Load ICC rankings
+rankings_df = pd.read_csv("icc_odi_rankings.csv")
+rankings_df['team'] = rankings_df['team'].str.strip()
+rank_map = dict(zip(rankings_df['team'], rankings_df['rank']))
+
+# Load historical matches for head-to-head
+matches_df = pd.read_csv("odi_Matches_Data.csv")
+matches_df = matches_df[['Team1 Name', 'Team2 Name', 'Match Winner', 'Match Venue (Stadium)']].dropna()
+matches_df.columns = ['team1', 'team2', 'winner', 'venue']
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    data = request.json
+    team1 = data.get("team1")
+    team2 = data.get("team2")
+    toss_winner = data.get("toss_winner")
+    toss_decision = data.get("toss_decision")
+    venue = data.get("venue")
+
+    # Encode inputs
+    team1_enc = team_encoder.transform([team1])[0]
+    team2_enc = team_encoder.transform([team2])[0]
+    toss_winner_enc = team_encoder.transform([toss_winner])[0]
+    toss_decision_enc = decision_encoder.transform([toss_decision])[0]
+    venue_enc = venue_encoder.transform([venue])[0]
+
+    # Rankings
+    default_rank = 20
+    team1_rank = rank_map.get(team1, default_rank)
+    team2_rank = rank_map.get(team2, default_rank)
+    rank_diff = team1_rank - team2_rank
+
+    # Head-to-Head Global
+    pair = tuple(sorted([team1, team2]))
+    past_matches = matches_df[((matches_df['team1'] == pair[0]) & (matches_df['team2'] == pair[1])) |
+                              ((matches_df['team1'] == pair[1]) & (matches_df['team2'] == pair[0]))]
+    team1_wins = sum(past_matches['winner'] == team1)
+    team2_wins = sum(past_matches['winner'] == team2)
+    total_matches = len(past_matches)
+    h2h_diff = team1_wins - team2_wins
+
+    # Venue-specific H2H
+    venue_matches = past_matches[past_matches['venue'] == venue]
+    venue_team1_wins = sum(venue_matches['winner'] == team1)
+    venue_team2_wins = sum(venue_matches['winner'] == team2)
+    venue_h2h_diff = venue_team1_wins - venue_team2_wins
+
+    # Final feature vector
+    features = [[
+        team1_enc, team2_enc, toss_winner_enc, toss_decision_enc, venue_enc,
+        team1_rank, team2_rank, rank_diff, h2h_diff, venue_h2h_diff
+    ]]
+    prediction_encoded = model.predict(features)[0]
+    predicted_winner = winner_encoder.inverse_transform([prediction_encoded])[0]
+
+    return jsonify({
+        "predicted_winner": predicted_winner,
+        "team1_wins": team1_wins,
+        "team2_wins": team2_wins,
+        "total_matches": total_matches,
+        "h2h_diff": h2h_diff,
+        "venue_team1_wins": venue_team1_wins,
+        "venue_team2_wins": venue_team2_wins,
+        "venue_h2h_diff": venue_h2h_diff
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
