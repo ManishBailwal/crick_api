@@ -1,7 +1,7 @@
-Flask==2.2.5
-flask-cors==3.0.10
-pandas==1.5.3
-scikit-learn==1.2.2
-gunicorn==20.1.0
-numpy==1.23.5  # ✅ compatible with pandas 1.5.3
-xgboost==1.7.6  # ✅ compatible with numpy 1.23 and scikit-learn 1.2
+Flask==2.2.5               ✅ Stable Flask version, compatible with all others
+flask-cors==3.0.10         ✅ Fully compatible with Flask 2.2.5
+pandas==1.5.3              ✅ Final 1.x release, stable with NumPy 1.23
+scikit-learn==1.2.2        ✅ Compatible with NumPy 1.23.5 and XGBoost 1.7.6
+gunicorn==20.1.0           ✅ No conflicts, perfect for deployment
+numpy==1.23.5              ✅ Safe and fully compatible with pandas 1.5.3
+xgboost==1.7.6             ✅ Matches well with scikit-learn 1.2.2 and numpy 1.23
