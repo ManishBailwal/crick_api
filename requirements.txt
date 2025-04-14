@@ -4,3 +4,4 @@ pandas==1.5.3
 scikit-learn==1.2.2
 gunicorn==20.1.0
 numpy==1.23.5  # ✅ compatible with pandas 1.5.3
+xgboost==1.7.6  # ✅ compatible with numpy 1.23 and scikit-learn 1.2
