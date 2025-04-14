@@ -3,8 +3,5 @@ services:
     name: crick-api
     env: python
     plan: free
-    buildCommand: ""
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
-    envVars:
-      - key: PORT
-        value: 10000
